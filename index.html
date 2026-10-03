@@ -54,7 +54,7 @@ th{background:#eef4f1}.right{text-align:right}.ok{color:#167447}.bad{color:#b33}
 <button onclick="show('dashboard')">Dashboard</button><button onclick="show('setup')">Setup</button><button onclick="show('members')">Members</button>
 <button onclick="show('billing')">Monthly Billing</button><button onclick="show('receipts')">Receipts</button><button onclick="show('whatsapp')">WhatsApp</button>
 <button onclick="show('expenses')">Expenses</button><button onclick="show('bank')">Bank Book</button>
-<button onclick="show('reports')">Reports</button><button onclick="adminSettings()" class="secondary">Admin / Delete</button><button onclick="backup()" class="secondary">Backup Data</button>
+<button onclick="show('reports')">Reports</button><button onclick="adminSettings()" class="secondary">Admin / Delete</button><button onclick="backup()" class="secondary">Backup Data</button><button onclick="document.getElementById('restoreBackupFile').click()" class="secondary">Restore Backup</button><input id="restoreBackupFile" type="file" accept=".json,application/json" style="display:none" onchange="restoreBackup(this)">
 </nav>
 
 <section id="dashboard" class="tab active panel">
@@ -1109,6 +1109,35 @@ function printReceivableStatus(){
   w.document.close();
 }
 function backup(){let blob=new Blob([JSON.stringify(db,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='association_accounts_backup.json';a.click()}
+function restoreBackup(input){
+  const f=input?.files?.[0];
+  if(!f)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const imported=JSON.parse(reader.result);
+      if(!imported || typeof imported!=='object' || !Array.isArray(imported.members) || !Array.isArray(imported.bills) || !Array.isArray(imported.receipts) || !Array.isArray(imported.expenses)){
+        alert('Invalid backup file. Please select the association_accounts_backup.json file created by this app.');
+        input.value=''; return;
+      }
+      if(!confirm(`Restore backup?\n\nMembers: ${imported.members.length}\nBills: ${imported.bills.length}\nReceipts: ${imported.receipts.length}\nExpenses: ${imported.expenses.length}\n\nThis will replace the data currently stored on this device.`)){
+        input.value='''; return;
+      }
+      db={...imported};
+      db.members=db.members||[]; db.bills=db.bills||[]; db.receipts=db.receipts||[]; db.expenses=db.expenses||[];
+      db.settings=Object.assign({subscription:1000,activeResidents:12,totalHouses:190,openingDate:'2026-07-31',openingBalance:0,openingBankBalance:0,openingCashBalance:0,openingReceivable:0,openingLiabilities:0,openingIncome:0,openingExpenses:0,reconAdjustment:0,manualIncomeDuplicate:0,reconDescription:'Already accounted in manual books / bank reconciliation'},db.settings||{});
+      localStorage.setItem(KEY,JSON.stringify(db));
+      input.value='';
+      render();
+      alert('Backup restored successfully. Your old association data is now available on this device.');
+    }catch(err){
+      console.error(err);
+      alert('Could not read the backup file. Please use the original JSON backup file.');
+      input.value='';
+    }
+  };
+  reader.readAsText(f);
+}
 function exportCSV(){let rows=[['Date','Type','House/Category','Month/Description','Amount','Mode/Reference'],...db.receipts.map(r=>[r.date,'Receipt',r.house,r.month,r.amount,r.mode+' '+r.ref]),...db.expenses.map(e=>[e.date,'Expense',e.cat,e.desc,e.amount,e.mode||'Bank',e.ref])];let csv=rows.map(r=>r.map(v=>`"${String(v??'').replaceAll('"','""')}"`).join(',')).join('\n');let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='association_transactions.csv';a.click()}
 loadSetup(); loadMeetingReportSettings(); syncRate(); populateLedgerHouses(); renderBankReconciliation(); (function(){const e=document.getElementById('accountingAsOn'); if(e)e.value=(db.settings&&db.settings.reportDate)||new Date().toISOString().slice(0,10);})();
 (function initReceivableFilters(){
