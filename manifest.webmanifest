@@ -1,31 +1,18 @@
 {
-  "id": "./",
-  "name": "Malliga Garden Accounts",
-  "short_name": "MG Accounts",
-  "description": "Offline association accounting tool for Malliga Garden Residents Welfare Association Vilangadupakkam",
-  "start_url": "./",
-  "scope": "./",
-  "display": "standalone",
-  "display_override": [
-    "standalone",
-    "minimal-ui"
-  ],
-  "orientation": "portrait",
-  "background_color": "#f4f6f8",
-  "theme_color": "#176b4d",
-  "prefer_related_applications": false,
-  "icons": [
-    {
-      "src": "./icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+  "id":"./",
+  "name":"Malliga Garden Accounts",
+  "short_name":"MG Accounts",
+  "description":"Professional offline association accounting tool for Malliga Garden Residents Welfare Association Vilangadupakkam",
+  "start_url":"./",
+  "scope":"./",
+  "display":"standalone",
+  "display_override":["standalone","minimal-ui"],
+  "orientation":"portrait",
+  "background_color":"#f4f7f6",
+  "theme_color":"#176b4d",
+  "prefer_related_applications":false,
+  "icons":[
+    {"src":"./icon-192.png","sizes":"192x192","type":"image/png","purpose":"any maskable"},
+    {"src":"./icon-512.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
   ]
 }
