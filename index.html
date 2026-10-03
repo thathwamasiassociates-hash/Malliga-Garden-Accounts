@@ -4,7 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Malliga Garden Accounts</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <meta name="theme-color" content="#176b4d">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -35,7 +37,7 @@ th{background:#eef4f1}.right{text-align:right}.ok{color:#167447}.bad{color:#b33}
 .receipt-green{color:#0d5a2a}\n</style>
 </head>
 <body>
-<header><div class="wrap"><h1>Malliga Garden Residents Welfare Association</h1><button id="installAppBtn" class="secondary" style="display:none;float:right;margin-top:-34px" onclick="installPWA()">Install App</button>
+<header><div class="wrap"><h1>Malliga Garden Residents Welfare Association</h1><button id="installAppBtn" class="secondary" style="float:right;margin-top:-34px" onclick="installPWA()">Install App</button>
 <div>
     Reg. No: SRG/Tiruvallur/52/2026 • PAN: ABBAM4716E<br>
     Plot No. 64 & 65, Malliga Garden, Vilangadupakkam, Chennai 600052<br>
@@ -1122,12 +1124,42 @@ loadSetup(); loadMeetingReportSettings(); syncRate(); populateLedgerHouses(); re
 render();
 
 let deferredInstallPrompt=null;
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=document.getElementById('installAppBtn');if(b)b.style.display='block';});
-async function installPWA(){
-  if(!deferredInstallPrompt){alert('If the Install App button is not available, use your browser menu and choose “Add to Home screen” or “Install app”.');return;}
-  deferredInstallPrompt.prompt(); await deferredInstallPrompt.userChoice; deferredInstallPrompt=null; const b=document.getElementById('installAppBtn');if(b)b.style.display='none';
+function isStandaloneMode(){return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;}
+function updateInstallButton(){
+  const b=document.getElementById('installAppBtn');
+  if(!b)return;
+  if(isStandaloneMode()){b.style.display='none';return;}
+  b.style.display='block';
+  b.textContent=deferredInstallPrompt?'Install App':'Install / Add to Home Screen';
 }
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredInstallPrompt=e;
+  updateInstallButton();
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  updateInstallButton();
+});
+async function installPWA(){
+  if(isStandaloneMode())return;
+  if(!deferredInstallPrompt){
+    alert('To install Malliga Garden Accounts on Android:\n\n1. Open this website directly in Google Chrome.\n2. Tap Chrome ⋮ (top-right).\n3. Choose “Install app” or “Add to home screen”.\n\nIf the install option is not shown, first refresh this page after the latest files have been published, then try again.');
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  try{await deferredInstallPrompt.userChoice;}catch(e){}
+  deferredInstallPrompt=null;
+  updateInstallButton();
+}
+window.addEventListener('load',()=>{
+  updateInstallButton();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('./sw.js',{scope:'./'}).then(()=>{
+      if(navigator.serviceWorker.controller) console.log('Malliga Garden Accounts service worker active');
+    }).catch(err=>console.log('Service worker registration failed',err));
+  }
+});
 setWhatsAppDates();
 waRender();
 </script>
