@@ -185,7 +185,7 @@ For resident statements, generate the statement/PDF first and then use <b>WhatsA
 <div><button onclick="waOpenAllReceipts()">Open Receipt WhatsApp List</button></div>
 <div><button class="secondary" onclick="waCopyAllNumbers()">Copy All WhatsApp Numbers</button></div>
 </div>
-<table><thead><tr><th>House</th><th>Resident</th><th>Mobile</th><th>Latest Receipt</th><th>Receipt</th><th>Statement</th></tr></thead><tbody id="waRows"></tbody></table>
+<table><thead><tr><th>House</th><th>Resident</th><th>Mobile</th><th>WhatsApp Number</th><th>Latest Receipt</th><th>Receipt</th><th>Statement</th></tr></thead><tbody id="waRows"></tbody></table>
 </section>
 
 <section id="expenses" class="tab panel">
@@ -723,18 +723,11 @@ async function shareReceiptWhatsApp(i){
   const phone=normalizeWhatsAppNumber(fields.mobile);
   if(!phone){alert('No mobile number is saved for this resident. Please add the resident mobile number in Member Master.');return;}
   const message='Malliga Garden Residents Welfare Association\nReceipt No: '+fields.receiptNo+'\nAmount: '+fields.amount+'\nMonth: '+fields.month;
-  try{
-    const blob=await receiptImageBlob(fields);
-    const file=new File([blob],fields.receiptNo.replaceAll('/','-')+'.png',{type:'image/png'});
-    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
-      await navigator.share({title:'Association Receipt '+fields.receiptNo,text:message,files:[file]});
-      return;
-    }
-  }catch(e){
-    if(e && e.name==='AbortError')return;
-  }
-  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(message),'_blank');
-  alert('WhatsApp has been opened with the receipt details. For security reasons, this browser cannot automatically attach the image; please attach the downloaded Receipt Image in WhatsApp.');
+  // Open the exact resident WhatsApp chat by phone number. The Android share sheet
+  // cannot target a specific WhatsApp number, so navigator.share() is intentionally
+  // not used here. The receipt image can be attached from the WhatsApp paperclip.
+  const chatUrl='https://wa.me/'+phone+'?text='+encodeURIComponent(message);
+  window.open(chatUrl,'_blank');
 }
 
 function setWhatsAppDates(){
@@ -750,9 +743,9 @@ function latestReceiptForHouse(h){
 function waRender(){
   const rows=(db.members||[]).map(m=>{
     const r=latestReceiptForHouse(m.house), ri=r?db.receipts.indexOf(r):-1;
-    return `<tr><td>${escapeHtml(m.house||'')}</td><td>${escapeHtml(m.name||'')}</td><td>${escapeHtml(m.mobile||'')}</td><td>${r?escapeHtml(r.no||'')+' - '+escapeHtml(formatDate(r.date||'')):'No receipt'}</td><td>${ri>=0?`<button onclick="shareReceiptWhatsApp(${ri})">WhatsApp Receipt</button>`:'-'}</td><td><button onclick="waStatement(${JSON.stringify(String(m.house))})">WhatsApp Statement</button></td></tr>`;
+    return `<tr><td>${escapeHtml(m.house||'')}</td><td>${escapeHtml(m.name||'')}</td><td>${escapeHtml(m.mobile||'')}</td><td>${m.mobile?'<b>+91 '+escapeHtml(normalizeWhatsAppNumber(m.mobile).slice(-10))+'</b>':'No mobile number'}</td><td>${r?escapeHtml(r.no||'')+' - '+escapeHtml(formatDate(r.date||'')):'No receipt'}</td><td>${ri>=0?`<button onclick="shareReceiptWhatsApp(${ri})">WhatsApp Receipt</button>`:'-'}</td><td><button onclick="waStatement(${JSON.stringify(String(m.house))})">WhatsApp Statement</button></td></tr>`;
   }).join('');
-  const e=document.getElementById('waRows');if(e)e.innerHTML=rows||'<tr><td colspan="6">No residents added.</td></tr>';
+  const e=document.getElementById('waRows');if(e)e.innerHTML=rows||'<tr><td colspan="7">No residents added.</td></tr>';
 }
 function waStatement(h){
   setWhatsAppDates();
