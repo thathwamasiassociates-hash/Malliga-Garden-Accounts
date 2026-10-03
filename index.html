@@ -22,7 +22,22 @@ header h1{margin:0;font-size:24px}.wrap{max-width:1250px;margin:auto;padding:20p
 nav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
 button{border:0;border-radius:7px;padding:9px 13px;background:#176b4d;color:#fff;cursor:pointer}
 button.secondary{background:#65717d} button.danger{background:#b33}
+
 .tab{display:none}.tab.active{display:block}
+.page-toolbar{display:none;align-items:center;gap:10px;margin:0 0 16px;padding:10px 0;border-bottom:1px solid #e5ebe8}
+.page-toolbar button{font-size:15px;padding:10px 14px}
+.page-title{font-size:22px;font-weight:bold;color:#176b4d;flex:1}
+body.page-mode .cards, body.page-mode nav, body.page-mode #backupRestorePanel{display:none}
+body.page-mode .wrap{max-width:1250px}
+body.page-mode .tab.active{min-height:calc(100vh - 150px);box-sizing:border-box}
+body.page-mode .page-toolbar{display:flex}
+@media(max-width:500px){
+  header{padding:14px 16px}
+  header h1{font-size:19px}
+  .wrap{padding:14px}
+  .page-title{font-size:19px}
+  .page-toolbar{position:sticky;top:0;background:#fff;z-index:5}
+}
 input,select{padding:9px;border:1px solid #ccd3d8;border-radius:6px;width:100%;box-sizing:border-box}
 .formgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;align-items:end}
 table{width:100%;border-collapse:collapse;margin-top:14px;background:white}
@@ -281,7 +296,39 @@ db.settings=Object.assign({
 },db.settings||{});
 const money=n=>'₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2});
 function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
-function show(id){document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');render()}
+const PAGE_TITLES={
+  dashboard:'Dashboard',setup:'Setup',members:'Members',billing:'Monthly Billing',receipts:'Receipts',
+  whatsapp:'WhatsApp',expenses:'Expenses',bank:'Bank Book',reports:'Reports',admin:'Admin / Delete'
+};
+function show(id,push=true){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  const page=document.getElementById(id);
+  if(!page)return;
+  page.classList.add('active');
+  const isHome=id==='dashboard';
+  document.body.classList.toggle('page-mode',!isHome);
+  if(!isHome){
+    let bar=page.querySelector(':scope > .page-toolbar');
+    if(!bar){
+      bar=document.createElement('div');
+      bar.className='page-toolbar';
+      bar.innerHTML='<button type="button" class="secondary" onclick="show(\'dashboard\')">← Home</button><div class="page-title"></div>';
+      page.insertBefore(bar,page.firstChild);
+    }
+    const title=bar.querySelector('.page-title');
+    if(title)title.textContent=PAGE_TITLES[id]||'Page';
+  }
+  if(push){
+    try{history.pushState({page:id},'',location.href.split('#')[0]+'#'+id)}catch(e){}
+  }
+  window.scrollTo({top:0,behavior:'auto'});
+  render();
+}
+window.addEventListener('popstate',()=>{
+  const id=(location.hash||'#dashboard').slice(1);
+  show(PAGE_TITLES[id]?id:'dashboard',false);
+});
+try{history.replaceState({page:'dashboard'},'',location.href.split('#')[0]+'#dashboard')}catch(e){}
 function addMember(){let h=mhouse.value.trim(), n=mname.value.trim();if(!h||!n)return alert('Enter House No. and Name');let x=db.members.find(a=>a.house==h);const email=(document.getElementById('memail')?.value||'').trim();if(x){x.name=n;x.mobile=mmobile.value;x.email=email}else db.members.push({house:h,name:n,mobile:mmobile.value,email});save();mhouse.value=mname.value=mmobile.value='';if(document.getElementById('memail'))document.getElementById('memail').value=''}
 function nextReceiptNo(){
   let max=0;
