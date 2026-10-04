@@ -1,4 +1,4 @@
-const VERSION='v17-final-locked-1';
+const VERSION='v17-final-locked-2';
 const CACHE='malliga-garden-accounts-'+VERSION;
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 
