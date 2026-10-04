@@ -193,7 +193,7 @@ th,td{padding:10px}
   .dashboard-page{padding-bottom:4px!important}
 }
 
-/* FINAL PRO MOBILE REFINEMENT v12 */
+/* FINAL PRO MOBILE REFINEMENT v13 */
 *,*::before,*::after{box-sizing:border-box}
 html,body{width:100%;max-width:100%;overflow-x:hidden}
 body{min-width:0;margin:0}
@@ -247,6 +247,13 @@ button{white-space:normal;line-height:1.2;word-break:normal}
 #accountingReportPreview,#monthlyMeetingPreview,#receivableSummary,#residentLedgerPreview,#bankReconSummary{max-width:100%;overflow-x:auto}
 #accountingReportPreview table,#monthlyMeetingPreview table,#receivableSummary table,#residentLedgerPreview table{max-width:100%!important}
 
+
+.receipt-search-bar{display:flex;align-items:center;gap:8px;margin:14px 0 6px;padding:9px 11px;background:#f6faf8;border:1px solid #cfe2d8;border-radius:14px;box-shadow:0 2px 8px rgba(20,60,40,.05)}
+.receipt-search-bar .search-icon{font-size:25px;line-height:1;color:#176b4d;font-weight:700;flex:0 0 auto}
+.receipt-search-bar input{flex:1;min-width:0!important;width:100%!important;margin:0!important;border:1px solid #d7e4dd!important;background:#fff!important;box-shadow:none!important;border-radius:10px!important;padding:11px 12px!important;font-size:15px!important;color:#183127!important}
+.receipt-search-bar button{margin:0!important;white-space:nowrap;padding:10px 13px!important}
+.search-count{font-size:12px;color:#65766d;margin:0 2px 8px}
+@media(max-width:700px){.receipt-search-bar{position:sticky;top:0;z-index:20;margin:0 -2px 8px;padding:8px;background:#f6faf8}.receipt-search-bar input{font-size:14px!important}.receipt-search-bar button{font-size:13px!important;padding:9px 10px!important}}
 </style>
 </head>
 <body>
@@ -382,6 +389,12 @@ button{white-space:normal;line-height:1.2;word-break:normal}
 <div><label>Receipt No.</label><input id="rno" readonly></div>
 <div><button id="receiptSaveBtn" onclick="saveReceipt()">Record Receipt</button> <button id="receiptCancelBtn" type="button" style="display:none" onclick="resetReceiptForm()">Cancel Edit</button> <button id="receiptDeleteCurrentBtn" type="button" class="danger delete-current-btn" onclick="deleteCurrentReceipt()">Delete Receipt</button></div>
 </div>
+<div class="receipt-search-bar">
+  <span class="search-icon">⌕</span>
+  <input id="receiptSearch" type="search" autocomplete="off" placeholder="Search receipt no., date, house, resident, month, amount, mode or reference" oninput="renderReceiptsList()">
+  <button type="button" class="secondary" onclick="clearReceiptSearch()">Clear</button>
+</div>
+<div id="receiptSearchCount" class="search-count"></div>
 <table><thead><tr><th>Receipt No.</th><th>Date</th><th>House</th><th>Member / Name</th><th>Month</th><th>Amount</th><th>Mode</th><th>Reference</th><th>PDF</th><th>Edit</th><th>Delete</th></tr></thead><tbody id="receiptRows"></tbody></table><div id="receiptMobileRows" class="mobile-record-list"></div>
 </section>
 
@@ -631,15 +644,31 @@ function generateBills(){let mo=billmonth.value, rate=+rateEl().value||1000;if(!
 function rateEl(){return document.getElementById('rate')} 
 function syncRate(){const r=document.getElementById('rate');if(r)r.value=db.settings.subscription||1000}
 function collectedFor(h,mo){return db.receipts.filter(r=>r.house==h&&r.month==mo).reduce((s,r)=>s+r.amount,0)}
+function clearReceiptSearch(){const el=document.getElementById('receiptSearch');if(el){el.value='';el.focus();}renderReceiptsList();}
+function renderReceiptsList(){
+  const q=String(document.getElementById('receiptSearch')?.value||'').trim().toLowerCase();
+  const all=db.receipts||[];
+  const filtered=all.map((r,i)=>({r,i})).filter(({r})=>{
+    if(!q)return true;
+    const member=r.member||((db.members.find(m=>String(m.house)===String(r.house))||{}).name||'');
+    const values=[r.no,r.date,r.house,member,r.month,formatMonthLabel(r.month||''),r.amount,r.mode,r.ref];
+    return values.some(v=>String(v??'').toLowerCase().includes(q));
+  });
+  const count=document.getElementById('receiptSearchCount');
+  if(count)count.textContent=q?`Showing ${filtered.length} of ${all.length} receipts`:`${all.length} receipt${all.length===1?'':'s'} recorded`;
+  const desktop=document.getElementById('receiptRows');
+  if(desktop)desktop.innerHTML=filtered.map(({r,i})=>`<tr><td>${escapeHtml(r.no||('MGRWA/'+new Date().getFullYear()+'/'+String(i+1).padStart(4,'0')))}</td><td>${escapeHtml(r.date||'')}</td><td>${escapeHtml(r.house||'')}</td><td>${escapeHtml(r.member||((db.members.find(m=>String(m.house)===String(r.house))||{}).name||''))}</td><td>${formatMonthLabel(r.month||'')}</td><td>${money(r.amount)}</td><td>${escapeHtml(r.mode||'')}</td><td>${escapeHtml(r.ref||'')}</td><td><button onclick="downloadReceiptPDF(${i})">📄 PDF</button> <button onclick="shareReceiptWhatsApp(${i})">📤 Share PDF</button></td><td><button onclick="editReceipt(${i})">Edit</button></td><td><button class="danger" onclick="adminDelete('receipt',${i})">Delete</button></td></tr>`).join('')||`<tr><td colspan="11" style="text-align:center;padding:18px;color:#667">${q?'No receipts match your search.':'No receipts recorded yet.'}</td></tr>`;
+  const mobile=document.getElementById('receiptMobileRows');
+  if(mobile)mobile.innerHTML=filtered.slice().reverse().map(({r,i})=>{const memberName=r.member||((db.members.find(m=>String(m.house)===String(r.house))||{}).name||'');const no=r.no||('MGRWA/'+new Date().getFullYear()+'/'+String(i+1).padStart(4,'0'));return `<div class="record-card"><div class="record-head"><div><div class="record-title">${escapeHtml(no)}</div><div class="record-meta">${escapeHtml(r.date||'')} • House ${escapeHtml(r.house||'')}</div></div><b>${money(r.amount)}</b></div><div class="record-grid"><div class="record-field"><b>Resident</b>${escapeHtml(memberName)}</div><div class="record-field"><b>Month</b>${formatMonthLabel(r.month||'')}</div><div class="record-field"><b>Payment Mode</b>${escapeHtml(r.mode||'')}</div><div class="record-field"><b>Reference</b>${escapeHtml(r.ref||'N/A')}</div></div><div class="record-actions"><button onclick="downloadReceiptPDF(${i})">📄 PDF</button><button onclick="shareReceiptWhatsApp(${i})">📤 Share</button><button onclick="editReceipt(${i})">✏️ Edit</button><button class="danger" onclick="adminDelete('receipt',${i})">🗑 Delete</button></div></div>`;}).join('')||`<div class="muted" style="padding:18px;text-align:center">${q?'No receipts match your search.':'No receipts recorded yet.'}</div>`;
+}
+
 function render(){
   waRender();
 memberRows.innerHTML=db.members.map((m,i)=>`<tr><td>${escapeHtml(m.house)}</td><td>${escapeHtml(m.name)}</td><td>${escapeHtml(m.mobile||'')}</td><td>${escapeHtml(m.email||'')}</td><td><button class="danger" onclick="adminDelete('member',${i})">Delete</button></td></tr>`).join('');
 const memberMobileRows=document.getElementById('memberMobileRows');
 if(memberMobileRows) memberMobileRows.innerHTML=db.members.map((m,i)=>`<div class="record-card"><div class="record-head"><div><div class="record-title">House ${escapeHtml(m.house)}</div><div class="record-meta">${escapeHtml(m.name)}</div></div><span class="status-pill ok">Member</span></div><div class="record-grid"><div class="record-field"><b>Mobile</b>${escapeHtml(m.mobile||'Not entered')}</div><div class="record-field"><b>Email</b>${escapeHtml(m.email||'Not entered')}</div></div><div class="record-actions"><button onclick="editMember(${i})">✏️ Edit</button><button class="danger" onclick="adminDelete('member',${i})">🗑 Delete</button></div></div>`).join('');
 billRows.innerHTML=db.bills.map(b=>{let p=collectedFor(b.house,b.month);return `<tr><td>${b.house}</td><td>${formatMonthLabel(b.month)}</td><td>${money(b.amount)}</td><td>${money(p)}</td><td class="${b.amount-p>0?'bad':'ok'}">${money(Math.max(0,b.amount-p))}</td></tr>`}).join('');
-receiptRows.innerHTML=db.receipts.map((r,i)=>`<tr><td>${escapeHtml(r.no||('MGRWA/'+new Date().getFullYear()+'/'+String(i+1).padStart(4,'0')))}</td><td>${escapeHtml(r.date||'')}</td><td>${escapeHtml(r.house||'')}</td><td>${escapeHtml(r.member||((db.members.find(m=>String(m.house)===String(r.house))||{}).name||''))}</td><td>${formatMonthLabel(r.month||'')}</td><td>${money(r.amount)}</td><td>${escapeHtml(r.mode||'')}</td><td>${escapeHtml(r.ref||'')}</td><td><button onclick="downloadReceiptPDF(${i})">📄 PDF</button> <button onclick="shareReceiptWhatsApp(${i})">📤 Share PDF</button></td><td><button onclick="editReceipt(${i})">Edit</button></td><td><button class="danger" onclick="adminDelete('receipt',${i})">Delete</button></td></tr>`).join('');
-const receiptMobileRows=document.getElementById('receiptMobileRows');
-if(receiptMobileRows) receiptMobileRows.innerHTML=db.receipts.slice().reverse().map((r,rev)=>{const i=db.receipts.length-1-rev;const memberName=r.member||((db.members.find(m=>String(m.house)===String(r.house))||{}).name||'');const no=r.no||('MGRWA/'+new Date().getFullYear()+'/'+String(i+1).padStart(4,'0'));return `<div class="record-card"><div class="record-head"><div><div class="record-title">${escapeHtml(no)}</div><div class="record-meta">${escapeHtml(r.date||'')} • House ${escapeHtml(r.house||'')}</div></div><b>${money(r.amount)}</b></div><div class="record-grid"><div class="record-field"><b>Resident</b>${escapeHtml(memberName)}</div><div class="record-field"><b>Month</b>${formatMonthLabel(r.month||'')}</div><div class="record-field"><b>Payment Mode</b>${escapeHtml(r.mode||'')}</div><div class="record-field"><b>Reference</b>${escapeHtml(r.ref||'N/A')}</div></div><div class="record-actions"><button onclick="downloadReceiptPDF(${i})">📄 PDF</button><button onclick="shareReceiptWhatsApp(${i})">📤 Share</button><button onclick="editReceipt(${i})">✏️ Edit</button><button class="danger" onclick="adminDelete('receipt',${i})">🗑 Delete</button></div></div>`;}).join('');
+renderReceiptsList();
 populateReceiptMembers();
 if(document.getElementById('rno')) document.getElementById('rno').value=nextReceiptNo();
 expenseRows.innerHTML=db.expenses.map((e,i)=>`<tr><td>${e.date}</td><td>${escapeHtml(e.cat)}</td><td>${escapeHtml(e.desc||'')}</td><td>${money(e.amount)}</td><td>${escapeHtml(e.mode||'Bank')}</td><td>${escapeHtml(e.ref||'')}</td><td><button onclick="editExpense(${i})">Edit</button></td><td><button class="danger" onclick="adminDelete('expense',${i})">Delete</button></td></tr>`).join('');
@@ -967,12 +996,28 @@ async function shareReceiptWhatsApp(i){
     if(go)openReceiptWhatsApp(i);
   }catch(e){alert('Unable to prepare the receipt PDF. Please use Receipt PDF and try again.');}
 }
+function openPersonalWhatsApp(phone,message){
+  const n=normalizeWhatsAppNumber(phone);
+  if(!n)return false;
+  const text=encodeURIComponent(message||'');
+  // Android intent targets the normal WhatsApp package (com.whatsapp),
+  // not WhatsApp Business (com.whatsapp.w4b).
+  const intent='intent://send?phone='+n+'&text='+text+'#Intent;scheme=whatsapp;package=com.whatsapp;end';
+  try{
+    window.location.href=intent;
+    return true;
+  }catch(e){
+    alert('Unable to open the personal WhatsApp app. Please make sure normal WhatsApp is installed.');
+    return false;
+  }
+}
+
 function openReceiptWhatsApp(i){
   const fields=getReceiptFields(i);if(!fields)return;
   const phone=normalizeWhatsAppNumber(fields.mobile);
   if(!phone)return alert('No mobile number is saved for this resident.');
   const message='Malliga Garden Residents Welfare Association\nReceipt No: '+fields.receiptNo+'\nAmount: '+fields.amount+'\nMonth: '+fields.month+'\n\nPlease find the receipt PDF attached.';
-  window.open('https://wa.me/'+phone+'?text='+encodeURIComponent(message),'_blank');
+  openPersonalWhatsApp(phone,message);
 }
 
 function setWhatsAppDates(){
@@ -996,10 +1041,11 @@ function waStatement(h){
   setWhatsAppDates();
   const f=document.getElementById('waFrom').value,t=document.getElementById('waTo').value;
   const m=db.members.find(x=>String(x.house)===String(h))||{};
-  if(!m.mobile)return alert('No mobile number is saved for House '+h+'. Please add it in Members.');
+  const phone=normalizeWhatsAppNumber(m.mobile);
+  if(!phone)return alert('No valid mobile number is saved for House '+h+'. Please update the member mobile number first.');
   if(!f||!t||f>t)return alert('Select a valid statement period.');
-  const message='Malliga Garden Residents Welfare Association\\nResident Statement - House '+h+'\\nResident: '+(m.name||'')+'\\nPeriod: '+formatDate(f)+' to '+formatDate(t)+'\\n\\nPlease find the resident account statement attached.';
-  window.open('https://wa.me/'+normalizeWhatsAppNumber(m.mobile)+'?text='+encodeURIComponent(message),'_blank');
+  const message='Malliga Garden Residents Welfare Association\nResident Statement - House '+h+'\nResident: '+(m.name||'')+'\nPeriod: '+formatDate(f)+' to '+formatDate(t)+'\n\nPlease find the resident account statement attached.';
+  openPersonalWhatsApp(phone,message);
 }
 function waOpenAllReceipts(){
   const missing=(db.members||[]).filter(m=>!normalizeWhatsAppNumber(m.mobile));
